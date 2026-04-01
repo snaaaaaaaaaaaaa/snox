@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>متتبع العادات</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f5;
+    --muted: #8b8fa8;
+    --green: #1D9E75;
+    --green-dim: rgba(29,158,117,0.15);
+    --red: #e24b4a;
+    --accent: #534AB7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1.5rem 1rem 3rem;
+  }
+  .container { max-width: 560px; margin: 0 auto; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 2rem; padding-top: 1rem; }
+  .header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  .header p { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+  .stat { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
+  .stat-val { font-size: 24px; font-weight: 600; color: var(--text); }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* Nav */
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .nav-btn { background: var(--surface); border: 0.5px solid var(--border2); border-radius: 8px; padding: 7px 16px; font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit; transition: background .15s; }
+  .nav-btn:hover { background: var(--surface2); }
+  .nav-info { font-size: 13px; font-weight: 500; color: var(--muted); text-align: center; }
+
+  /* Habits */
+  .habits { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; }
+  .hrow {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: border-color .15s;
+  }
+  .hrow:hover { border-color: var(--border2); }
+  .hcheck {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border2);
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+  }
+  .hcheck.done { background: var(--green); border-color: var(--green); }
+  .hcheck.done::after {
+    content: ''; display: block;
+    width: 9px; height: 5px;
+    border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translateY(-1px);
+  }
+  .hinfo { flex: 1; min-width: 0; }
+  .hname { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hname.done { text-decoration: line-through; color: var(--muted); }
+  .hsub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .streak { font-size: 11px; color: var(--green); font-weight: 600; flex-shrink: 0; }
+  .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 3px 5px; line-height: 1; border-radius: 6px; transition: color .15s, background .15s; }
+  .icon-btn:hover { color: var(--text); background: var(--surface2); }
+  .icon-btn.del:hover { color: var(--red); }
+  .empty-msg { font-size: 13px; color: var(--muted); text-align: center; padding: 1.5rem 0; }
+
+  /* Add form */
+  .add-box { background: var(--surface); border: 0.5px dashed var(--border2); border-radius: 12px; padding: 14px; margin-bottom: 1.25rem; }
+  .add-inputs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .add-inputs input {
+    background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: 8px; padding: 9px 12px;
+    font-size: 13px; color: var(--text); font-family: inherit;
+    outline: none; transition: border-color .15s;
+  }
+  .add-inputs input:focus { border-color: var(--green); }
+  .add-inputs input::placeholder { color: var(--muted); }
+  .add-btn {
+    background: var(--green); border: none; border-radius: 8px;
+    padding: 9px 18px; font-size: 13px; color: #fff;
+    cursor: pointer; font-family: inherit; font-weight: 500;
+    transition: background .15s; width: 100%;
+  }
+  .add-btn:hover { background: #0F6E56; }
+
+  /* Chart */
+  .chart-box { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 1rem; }
+  .chart-lbl { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .chart-wrap { position: relative; width: 100%; height: 160px; }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 1rem;
+  }
+  .modal {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    width: min(360px, 100%);
+  }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 1rem; }
+  .modal input {
+    width: 100%; background: var(--surface2);
+    border: 0.5px solid var(--border2); border-radius: 8px;
+    padding: 9px 12px; font-size: 13px; color: var(--text);
+    font-family: inherit; margin-bottom: 8px; outline: none;
+  }
+  .modal input:focus { border-color: var(--green); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 4px; }
+  .modal-btns button {
+    flex: 1; border-radius: 8px; padding: 9px;
+    font-size: 13px; cursor: pointer; font-family: inherit;
+    border: 0.5px solid var(--border2); background: transparent;
+    color: var(--text); transition: background .15s;
+  }
+  .modal-btns button:hover { background: var(--surface2); }
+  .modal-btns button.primary { background: var(--green); border-color: var(--green); color: #fff; }
+  .modal-btns button.primary:hover { background: #0F6E56; }
+
+  /* Title edit */
+  .title-edit { cursor: pointer; border-bottom: 1px dashed rgba(255,255,255,0.2); }
+  .title-edit:hover { border-bottom-color: var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1 id="appTitle" class="title-edit" onclick="editTitle()" title="اضغط لتغيير العنوان">متتبع العادات</h1>
+    <p id="dateLabel"></p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-val" id="todayPct">0%</div><div class="stat-lbl">إنجاز اليوم</div></div>
+    <div class="stat"><div class="stat-val" id="bestStreak">0</div><div class="stat-lbl">أفضل سلسلة</div></div>
+    <div class="stat"><div class="stat-val" id="totalHabits">0</div><div class="stat-lbl">عدد العادات</div></div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn" onclick="changeDay(-1)">→ السابق</button>
+    <div class="nav-info" id="dayNav"></div>
+    <button class="nav-btn" onclick="changeDay(1)">التالي ←</button>
+  </div>
+
+  <div class="habits" id="habitsGrid"></div>
+
+  <div class="add-box">
+    <div class="add-inputs">
+      <input id="newName" placeholder="اسم العادة الجديدة..." />
+      <input id="newSub" placeholder="وصف قصير (اختياري)" />
+    </div>
+    <button class="add-btn" onclick="addHabit()">+ إضافة عادة</button>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-lbl">منحنى التقدم اليومي</div>
+    <div class="chart-wrap"><canvas id="progressChart"></canvas></div>
+  </div>
+
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <h3>تعديل العادة</h3>
+    <input id="editName" placeholder="اسم العادة" />
+    <input id="editSub" placeholder="وصف قصير (اختياري)" />
+    <div class="modal-btns">
+      <button onclick="closeEdit()">إلغاء</button>
+      <button class="primary" onclick="saveEdit()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Title Modal -->
+<div id="titleModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <h3>تغيير عنوان التطبيق</h3>
+    <input id="titleInput" placeholder="عنوان التطبيق" />
+    <div class="modal-btns">
+      <button onclick="document.getElementById('titleModal').style.display='none'">إلغاء</button>
+      <button class="primary" onclick="saveTitle()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const START = new Date(); START.setHours(0,0,0,0);
+let offset = 0;
+let editIdx = -1;
+let chart = null;
+
+function ls(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }
+function ss(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+
+let habits = ls('ht2_habits', [
+  {id:'run', name:'الجري', sub:'ولو 10 دقائق'},
+  {id:'sleep', name:'النوم مبكراً', sub:'قبل 1 صباحاً'},
+  {id:'wake', name:'الاستيقاظ المبكر', sub:'على 7 صباحاً أو قبل'},
+  {id:'study1', name:'جلسة دراسة أولى', sub:'فيزياء أو رياضيات'},
+  {id:'study2', name:'جلسة دراسة ثانية', sub:'مادة ثانية'},
+]);
+let logs = ls('ht2_logs', {});
+let appTitle = ls('ht2_title', 'متتبع العادات');
+
+document.getElementById('appTitle').textContent = appTitle;
+
+function dayKey(d) {
+  const dt = new Date(START); dt.setDate(dt.getDate() + d);
+  return dt.toISOString().slice(0,10);
+}
+function uid() { return 'h' + Date.now() + Math.random().toString(36).slice(2,5); }
+
+function addHabit() {
+  const name = document.getElementById('newName').value.trim();
+  if (!name) return;
+  habits.push({id: uid(), name, sub: document.getElementById('newSub').value.trim()});
+  ss('ht2_habits', habits);
+  document.getElementById('newName').value = '';
+  document.getElementById('newSub').value = '';
+  render();
+}
+
+function deleteHabit(idx) {
+  if (!confirm('حذف هذه العادة؟')) return;
+  habits.splice(idx, 1);
+  ss('ht2_habits', habits);
+  render();
+}
+
+function openEdit(idx) {
+  editIdx = idx;
+  document.getElementById('editName').value = habits[idx].name;
+  document.getElementById('editSub').value = habits[idx].sub || '';
+  document.getElementById('editModal').style.display = 'flex';
+}
+function closeEdit() { document.getElementById('editModal').style.display = 'none'; editIdx = -1; }
+function saveEdit() {
+  if (editIdx < 0) return;
+  const n = document.getElementById('editName').value.trim();
+  if (!n) return;
+  habits[editIdx].name = n;
+  habits[editIdx].sub = document.getElementById('editSub').value.trim();
+  ss('ht2_habits', habits);
+  closeEdit(); render();
+}
+
+function editTitle() {
+  document.getElementById('titleInput').value = appTitle;
+  document.getElementById('titleModal').style.display = 'flex';
+}
+function saveTitle() {
+  appTitle = document.getElementById('titleInput').value.trim() || appTitle;
+  ss('ht2_title', appTitle);
+  document.getElementById('appTitle').textContent = appTitle;
+  document.getElementById('titleModal').style.display = 'none';
+}
+
+function toggle(id) {
+  const k = dayKey(offset);
+  if (!logs[k]) logs[k] = {};
+  logs[k][id] = !logs[k][id];
+  ss('ht2_logs', logs);
+  render();
+}
+
+function changeDay(dir) { offset = Math.min(0, offset + dir); render(); }
+
+function getDayPct(d) {
+  if (!habits.length) return 0;
+  const k = dayKey(d);
+  if (!logs[k]) return 0;
+  return Math.round(habits.filter(h => logs[k][h.id]).length / habits.length * 100);
+}
+
+function getBestStreak() {
+  let best = 0, cur = 0;
+  for (let i = -59; i <= 0; i++) {
+    if (getDayPct(i) >= 50) { cur++; best = Math.max(best, cur); } else cur = 0;
+  }
+  return best;
+}
+
+function render() {
+  const k = dayKey(offset);
+  const dayLog = logs[k] || {};
+  const dt = new Date(START); dt.setDate(dt.getDate() + offset);
+  const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+
+  document.getElementById('dateLabel').textContent = dt.toLocaleDateString('ar-DZ', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  document.getElementById('dayNav').textContent = offset === 0 ? 'اليوم' : days[dt.getDay()] + ' — منذ ' + Math.abs(offset) + ' يوم';
+  document.getElementById('todayPct').textContent = getDayPct(offset) + '%';
+  document.getElementById('bestStreak').textContent = getBestStreak();
+  document.getElementById('totalHabits').textContent = habits.length;
+
+  const grid = document.getElementById('habitsGrid');
+  grid.innerHTML = '';
+  if (!habits.length) {
+    grid.innerHTML = '<div class="empty-msg">أضف عادتك الأولى أدناه ↓</div>';
+  } else {
+    habits.forEach((h, idx) => {
+      const done = !!dayLog[h.id];
+      let streak = 0;
+      for (let i = offset - 1; i >= -59; i--) {
+        const lk = dayKey(i);
+        if (logs[lk] && logs[lk][h.id]) streak++; else break;
+      }
+      const row = document.createElement('div');
+      row.className = 'hrow';
+      row.innerHTML = `
+        <div class="hcheck${done?' done':''}" onclick="toggle('${h.id}')"></div>
+        <div class="hinfo">
+          <div class="hname${done?' done':''}">${h.name}</div>
+          ${h.sub ? `<div class="hsub">${h.sub}</div>` : ''}
+        </div>
+        ${streak > 1 ? `<div class="streak">${streak} يوم 🔥</div>` : ''}
+        <button class="icon-btn" onclick="openEdit(${idx})" title="تعديل">✎</button>
+        <button class="icon-btn del" onclick="deleteHabit(${idx})" title="حذف">×</button>
+      `;
+      grid.appendChild(row);
+    });
+  }
+
+  const labels = [], values = [];
+  for (let i = Math.max(-13, offset - 13); i <= offset; i++) {
+    const dd = new Date(START); dd.setDate(dd.getDate() + i);
+    labels.push(dd.toLocaleDateString('ar', {month:'short', day:'numeric'}));
+    values.push(getDayPct(i));
+  }
+
+  if (chart) { chart.destroy(); chart = null; }
+  chart = new Chart(document.getElementById('progressChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: '#1D9E75',
+        backgroundColor: 'rgba(29,158,117,0.12)',
+        fill: true, tension: 0.35,
+        pointRadius: 4, pointBackgroundColor: '#1D9E75',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { color: '#8b8fa8', font: { size: 11 }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        x: { ticks: { color: '#8b8fa8', font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+render();
+
+// Enter key support
+document.getElementById('newSub').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
+document.getElementById('newName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('newSub').focus(); });
+</script>
+</body>
+</html>
